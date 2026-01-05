@@ -1,0 +1,1 @@
+# vspo-cosplay-bot
