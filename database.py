@@ -6,26 +6,27 @@ DB_NAME = "vspo_cosplay.db"
 def init_db():
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-    # 既存のイベントテーブル
+    
+    # 1. イベント参加表明用
     c.execute('''CREATE TABLE IF NOT EXISTS events
                  (id INTEGER PRIMARY KEY, event_name TEXT, user_id INTEGER, char_name TEXT, costume TEXT)''')
     
-    # 【変更】三面図テーブルに costume_name を追加
+    # 2. 三面図共有用（衣装名を追加済み）
     c.execute('''CREATE TABLE IF NOT EXISTS cosplay_refs
                  (id INTEGER PRIMARY KEY, char_name TEXT, costume_name TEXT, url TEXT)''')
-                 
-    # 写真テーブル
+    
+    # 3. 写真共有用
     c.execute('''CREATE TABLE IF NOT EXISTS photos
                  (id INTEGER PRIMARY KEY, user_id INTEGER, url TEXT, char_name TEXT, likes INTEGER)''')
     
-    # カレンダーテーブル
+    # 4. イベントカレンダー用
     c.execute('''CREATE TABLE IF NOT EXISTS event_schedule
                  (id INTEGER PRIMARY KEY, name TEXT, date TEXT, region TEXT, place TEXT)''')
                  
     conn.commit()
     conn.close()
 
-# --- イベント系（変更なし） ---
+# --- 参加表明機能 ---
 def add_event_entry(event_name, user_id, char_name, costume):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
@@ -42,6 +43,33 @@ def get_event_participants(event_name):
     conn.close()
     return data
 
+# --- 写真共有機能 ---
+def save_photo(user_id, url, char_name="未設定"):
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute("INSERT INTO photos (user_id, url, char_name, likes) VALUES (?, ?, ?, 0)", 
+              (user_id, url, char_name))
+    conn.commit()
+    conn.close()
+
+# --- 三面図機能（アップグレード版） ---
+def search_reference(keyword):
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    # 複数ヒットに対応するため fetchall を使用
+    c.execute("SELECT char_name, costume_name, url FROM cosplay_refs WHERE char_name LIKE ?", (f'%{keyword}%',))
+    data = c.fetchall()
+    conn.close()
+    return data
+
+def add_reference(char_name, costume_name, url):
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute("INSERT INTO cosplay_refs (char_name, costume_name, url) VALUES (?, ?, ?)", (char_name, costume_name, url))
+    conn.commit()
+    conn.close()
+
+# --- カレンダー機能 ---
 def add_schedule_item(name, date, region, place):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
@@ -53,27 +81,8 @@ def add_schedule_item(name, date, region, place):
 def get_schedule_by_region(region):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
+    # 今日の日付以降のみ取得
     c.execute("SELECT date, name, place FROM event_schedule WHERE region = ? AND date >= date('now') ORDER BY date ASC", (region,))
     data = c.fetchall()
     conn.close()
     return data
-
-# --- 【ここを変更】三面図機能 ---
-
-# 検索時に「全て」取得するように変更 (fetchall)
-def search_reference(keyword):
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    # キャラ名にキーワードが含まれるものを全件取得
-    c.execute("SELECT char_name, costume_name, url FROM cosplay_refs WHERE char_name LIKE ?", (f'%{keyword}%',))
-    data = c.fetchall()
-    conn.close()
-    return data
-
-# 登録時に「衣装名」も保存するように変更
-def add_reference(char_name, costume_name, url):
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    c.execute("INSERT INTO cosplay_refs (char_name, costume_name, url) VALUES (?, ?, ?)", (char_name, costume_name, url))
-    conn.commit()
-    conn.close()
