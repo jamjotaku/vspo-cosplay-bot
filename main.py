@@ -93,6 +93,60 @@ async def on_message(message):
 
     # コマンド処理も継続
     await bot.process_commands(message)
+    # --- (ここまでは既存コード) ---
+
+# ---------------------------------------------------------
+# 新機能: 地域別イベントカレンダー
+# ---------------------------------------------------------
+
+# 地域の選択肢を定義
+REGION_CHOICES = [
+    app_commands.Choice(name="関東", value="関東"),
+    app_commands.Choice(name="関西", value="関西"),
+    app_commands.Choice(name="北海道・東北", value="北海道・東北"),
+    app_commands.Choice(name="中部", value="中部"),
+    app_commands.Choice(name="中国・四国", value="中国・四国"),
+    app_commands.Choice(name="九州・沖縄", value="九州・沖縄"),
+]
+
+@bot.tree.command(name="add_event", description="カレンダーにイベントを登録します")
+@app_commands.describe(name="イベント名", date="開催日 (例: 2024-08-12)", region="地域", place="場所・詳細")
+@app_commands.choices(region=REGION_CHOICES)
+async def add_event(interaction: discord.Interaction, name: str, date: str, region: str, place: str):
+    # 日付フォーマットチェック（簡易）
+    import re
+    if not re.match(r"\d{4}-\d{2}-\d{2}", date):
+        await interaction.response.send_message("💦 日付は `2024-08-12` のようにハイフン区切りで入力してください。", ephemeral=True)
+        return
+
+    database.add_schedule_item(name, date, region, place)
+    await interaction.response.send_message(f"🗓️ **{region}** のカレンダーに登録しました！\n**{date}** : {name} (@{place})")
+
+
+@bot.tree.command(name="calendar", description="地域別のイベントカレンダーを表示します")
+@app_commands.choices(region=REGION_CHOICES)
+async def calendar(interaction: discord.Interaction, region: str):
+    events = database.get_schedule_by_region(region)
+    
+    if not events:
+        await interaction.response.send_message(f"🍂 現在登録されている **{region}** の予定はありません。", ephemeral=True)
+        return
+
+    embed = discord.Embed(title=f"🗓️ {region} のコスプレイベント情報", color=0xff9900)
+    description_text = ""
+    
+    for event in events:
+        date, name, place = event
+        # 曜日を計算しておしゃれにする
+        dt = datetime.datetime.strptime(date, "%Y-%m-%d")
+        weekday = ["月", "火", "水", "木", "金", "土", "日"][dt.weekday()]
+        
+        description_text += f"**{date} ({weekday})**\n🏆 **{name}**\n📍 {place}\n\n"
+
+    embed.description = description_text
+    await interaction.response.send_message(embed=embed)
+
+# --- (Bot起動コードの手前に入れる) ---
 
 # Bot起動
 bot.run(TOKEN)
