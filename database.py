@@ -8,9 +8,11 @@ def init_db():
     # 1. イベント参加テーブル
     c.execute('''CREATE TABLE IF NOT EXISTS events
                  (id INTEGER PRIMARY KEY, event_name TEXT, user_id INTEGER, char_name TEXT, costume TEXT)''')
-    # 2. 資料リファレンス
-    c.execute('''CREATE TABLE IF NOT EXISTS references
+    
+    # 2. 資料リファレンス (※ここを修正しました: references -> cosplay_refs)
+    c.execute('''CREATE TABLE IF NOT EXISTS cosplay_refs
                  (id INTEGER PRIMARY KEY, char_name TEXT, url TEXT)''')
+    
     # 3. 写真アーカイブ
     c.execute('''CREATE TABLE IF NOT EXISTS photos
                  (id INTEGER PRIMARY KEY, user_id INTEGER, url TEXT, char_name TEXT, likes INTEGER)''')
@@ -44,19 +46,21 @@ def save_photo(user_id, url, char_name="未設定"):
     conn.commit()
     conn.close()
 
-# 資料検索
+# 資料検索 (※テーブル名修正)
 def search_reference(keyword):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-    c.execute("SELECT char_name, url FROM references WHERE char_name LIKE ?", (f'%{keyword}%',))
+    # references -> cosplay_refs
+    c.execute("SELECT char_name, url FROM cosplay_refs WHERE char_name LIKE ?", (f'%{keyword}%',))
     data = c.fetchone()
     conn.close()
     return data
 
-# 資料登録（管理者用）
+# 資料登録（管理者用） (※テーブル名修正)
 def add_reference(char_name, url):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-    c.execute("INSERT INTO references (char_name, url) VALUES (?, ?)", (char_name, url))
+    # references -> cosplay_refs
+    c.execute("INSERT INTO cosplay_refs (char_name, url) VALUES (?, ?)", (char_name, url))
     conn.commit()
     conn.close()
